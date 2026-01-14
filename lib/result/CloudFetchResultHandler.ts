@@ -64,7 +64,7 @@ export default class CloudFetchResultHandler implements IResultsProvider<ArrowBa
     }
 
     if (this.isLZ4Compressed) {
-      batch.batches = batch.batches.map((buffer) => LZ4!.decode(buffer));
+      batch.batches = batch.batches.map((buffer) => LZ4!.uncompressSync(buffer));
     }
     return batch;
   }

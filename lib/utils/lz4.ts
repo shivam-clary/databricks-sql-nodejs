@@ -1,10 +1,10 @@
-import type LZ4Namespace from 'lz4';
+import type LZ4Namespace from 'lz4-napi';
 
 type LZ4Module = typeof LZ4Namespace;
 
 function tryLoadLZ4Module(): LZ4Module | undefined {
   try {
-    return require('lz4'); // eslint-disable-line global-require
+    return require('lz4-napi'); // eslint-disable-line global-require
   } catch (err) {
     if (!(err instanceof Error) || !('code' in err)) {
       console.warn('Unexpected error loading LZ4 module: Invalid error object', err);

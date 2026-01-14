@@ -52,7 +52,7 @@ export default class ArrowResultHandler implements IResultsProvider<ArrowBatch> 
     let totalRowCount = 0;
     rowSet?.arrowBatches?.forEach(({ batch, rowCount }) => {
       if (batch) {
-        batches.push(this.isLZ4Compressed ? LZ4!.decode(batch) : batch);
+        batches.push(this.isLZ4Compressed ? LZ4!.uncompressSync(batch) : batch);
         totalRowCount += rowCount.toNumber(true);
       }
     });
