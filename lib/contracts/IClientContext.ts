@@ -20,7 +20,6 @@ export interface ClientConfig {
   cloudFetchConcurrentDownloads: number;
   cloudFetchSpeedThresholdMBps: number;
 
-  useLZ4Compression: boolean;
   enableMetricViewMetadata?: boolean;
 }
 

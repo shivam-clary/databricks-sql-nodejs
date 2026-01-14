@@ -1,7 +1,6 @@
 import { expect, AssertionError } from 'chai';
 import sinon, { SinonStub } from 'sinon';
 import Int64 from 'node-int64';
-import LZ4 from 'lz4';
 import { Request, Response } from 'node-fetch';
 import { ShouldRetryResult } from '../../../lib/connection/contracts/IRetryPolicy';
 import { HttpTransactionDetails } from '../../../lib/connection/contracts/IConnectionProvider';
@@ -292,34 +291,6 @@ describe('CloudFetchResultHandler', () => {
     expect(rowCount).to.equal(1);
   });
 
-  it('should handle LZ4 compressed data', async () => {
-    const context = new ClientContextStub();
-
-    const rowSetProvider = new ResultsProviderStub([sampleRowSet1], undefined);
-
-    const result = new CloudFetchResultHandler(context, rowSetProvider, {
-      lz4Compressed: true,
-      status: { statusCode: TStatusCode.SUCCESS_STATUS },
-    });
-
-    const expectedBatch = Buffer.concat([sampleArrowSchema, sampleArrowBatch]);
-
-    context.invokeWithRetryStub.callsFake(async () => ({
-      request: new Request('localhost'),
-      response: new Response(LZ4.encode(expectedBatch), { status: 200 }),
-    }));
-
-    expect(await rowSetProvider.hasMore()).to.be.true;
-
-    const { batches } = await result.fetchNext({ limit: 10000 });
-    expect(await rowSetProvider.hasMore()).to.be.false;
-
-    // it should use retry policy for all requests
-    expect((context.connectionProvider.getRetryPolicy as SinonStub).called).to.be.true;
-    expect(context.invokeWithRetryStub.called).to.be.true;
-    expect(batches).to.deep.eq([expectedBatch]);
-  });
-
   it('should handle HTTP errors', async () => {
     const context = new ClientContextStub({ cloudFetchConcurrentDownloads: 1 });
 
@@ -380,23 +351,4 @@ describe('CloudFetchResultHandler', () => {
     }
   });
 
-  it('should handle data without LZ4 compression', async () => {
-    const context = new ClientContextStub();
-    const rowSetProvider = new ResultsProviderStub([sampleRowSet1], undefined);
-
-    const result = new CloudFetchResultHandler(context, rowSetProvider, {
-      lz4Compressed: false,
-      status: { statusCode: TStatusCode.SUCCESS_STATUS },
-    });
-
-    context.invokeWithRetryStub.callsFake(async () => ({
-      request: new Request('localhost'),
-      response: new Response(sampleArrowBatch, { status: 200 }), // Return only the batch
-    }));
-
-    const { batches } = await result.fetchNext({ limit: 10000 });
-
-    // Ensure the batches array matches the expected structure
-    expect(batches).to.deep.eq([sampleArrowBatch]);
-  });
 });

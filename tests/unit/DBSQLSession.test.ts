@@ -130,7 +130,6 @@ describe('DBSQLSession', () => {
             queryTimeout: 100,
             namedParameters: { param1: 'value1' },
             useCloudFetch: true,
-            useLZ4Compression: true,
           };
 
           const session = new DBSQLSession({
@@ -159,17 +158,6 @@ describe('DBSQLSession', () => {
             expect(req.parameters).to.not.exist;
           }
 
-          if (version >= TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V6) {
-            // Since cloud fetch is enabled, canDecompressLZ4Result should not be set
-            if (req.canDownloadResult === true) {
-              expect(req.canDecompressLZ4Result).to.not.be.true;
-            } else {
-              expect(req.canDecompressLZ4Result).to.be.true;
-            }
-          } else {
-            expect(req.canDecompressLZ4Result).to.not.be.true;
-          }
-
           if (version >= TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V5) {
             expect(req.canReadArrowResult).to.be.true;
             expect(req.useArrowNativeTypes).to.not.be.undefined;
@@ -186,76 +174,6 @@ describe('DBSQLSession', () => {
           }
         });
       }
-    });
-
-    describe('LZ4 compression with cloud fetch', () => {
-      it('should not set canDecompressLZ4Result when cloud fetch is enabled (canDownloadResult=true)', async () => {
-        const context = new ClientContextStub({ useLZ4Compression: true });
-        const driver = sinon.spy(context.driver);
-        const statement = 'SELECT * FROM table';
-
-        // Use V6+ which supports arrow compression
-        const session = new DBSQLSession({
-          handle: sessionHandleStub,
-          context,
-          serverProtocolVersion: TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V6,
-        });
-
-        // Execute with cloud fetch enabled
-        await session.executeStatement(statement, { useCloudFetch: true });
-
-        expect(driver.executeStatement.callCount).to.eq(1);
-        const req = driver.executeStatement.firstCall.args[0];
-
-        // canDownloadResult should be true and canDecompressLZ4Result should NOT be set
-        expect(req.canDownloadResult).to.be.true;
-        expect(req.canDecompressLZ4Result).to.not.be.true;
-      });
-
-      it('should set canDecompressLZ4Result when cloud fetch is disabled (canDownloadResult=false)', async () => {
-        const context = new ClientContextStub({ useLZ4Compression: true });
-        const driver = sinon.spy(context.driver);
-        const statement = 'SELECT * FROM table';
-
-        // Use V6+ which supports arrow compression
-        const session = new DBSQLSession({
-          handle: sessionHandleStub,
-          context,
-          serverProtocolVersion: TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V6,
-        });
-
-        // Execute with cloud fetch disabled
-        await session.executeStatement(statement, { useCloudFetch: false });
-
-        expect(driver.executeStatement.callCount).to.eq(1);
-        const req = driver.executeStatement.firstCall.args[0];
-
-        // canDownloadResult should be false and canDecompressLZ4Result should be set
-        expect(req.canDownloadResult).to.be.false;
-        expect(req.canDecompressLZ4Result).to.be.true;
-      });
-
-      it('should not set canDecompressLZ4Result when server protocol does not support Arrow compression', async () => {
-        const context = new ClientContextStub({ useLZ4Compression: true });
-        const driver = sinon.spy(context.driver);
-        const statement = 'SELECT * FROM table';
-
-        // Use V5 which does not support arrow compression
-        const session = new DBSQLSession({
-          handle: sessionHandleStub,
-          context,
-          serverProtocolVersion: TProtocolVersion.SPARK_CLI_SERVICE_PROTOCOL_V5,
-        });
-
-        // Execute with cloud fetch disabled
-        await session.executeStatement(statement, { useCloudFetch: false });
-
-        expect(driver.executeStatement.callCount).to.eq(1);
-        const req = driver.executeStatement.firstCall.args[0];
-
-        // canDecompressLZ4Result should NOT be set regardless of cloud fetch setting
-        expect(req.canDecompressLZ4Result).to.not.be.true;
-      });
     });
   });
 

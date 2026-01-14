@@ -31,7 +31,7 @@ import IOperation from './contracts/IOperation';
 import DBSQLOperation from './DBSQLOperation';
 import Status from './dto/Status';
 import InfoValue from './dto/InfoValue';
-import { definedOrError, LZ4, ProtocolVersion } from './utils';
+import { definedOrError, ProtocolVersion } from './utils';
 import CloseableCollection from './utils/CloseableCollection';
 import { LogLevel } from './contracts/IDBSQLLogger';
 import HiveDriverError from './errors/HiveDriverError';
@@ -229,10 +229,6 @@ export default class DBSQLSession implements IDBSQLSession {
 
     if (ProtocolVersion.supportsCloudFetch(this.serverProtocolVersion)) {
       request.canDownloadResult = options.useCloudFetch ?? clientConfig.useCloudFetch;
-    }
-
-    if (ProtocolVersion.supportsArrowCompression(this.serverProtocolVersion) && request.canDownloadResult !== true) {
-      request.canDecompressLZ4Result = (options.useLZ4Compression ?? clientConfig.useLZ4Compression) && Boolean(LZ4);
     }
 
     const operationPromise = driver.executeStatement(request);

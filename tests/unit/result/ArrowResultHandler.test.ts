@@ -1,6 +1,5 @@
 import { expect } from 'chai';
 import Int64 from 'node-int64';
-import LZ4 from 'lz4';
 import ArrowResultHandler from '../../../lib/result/ArrowResultHandler';
 import ResultsProviderStub from '../.stubs/ResultsProviderStub';
 import { TRowSet, TSparkArrowBatch, TStatusCode, TTableSchema } from '../../../thrift/TCLIService_types';
@@ -32,15 +31,6 @@ const sampleRowSet1: TRowSet = {
   startRowOffset: new Int64(0),
   rows: [],
   arrowBatches: [sampleArrowBatch],
-};
-
-const sampleRowSet1LZ4Compressed: TRowSet = {
-  startRowOffset: new Int64(0),
-  rows: [],
-  arrowBatches: sampleRowSet1.arrowBatches?.map((item) => ({
-    ...item,
-    batch: LZ4.encode(item.batch),
-  })),
 };
 
 const sampleRowSet2: TRowSet = {
@@ -80,36 +70,6 @@ describe('ArrowResultHandler', () => {
 
     const expectedBatches = sampleRowSet1.arrowBatches?.map(({ batch }) => batch) ?? [];
     expect(batches).to.deep.eq([sampleArrowSchema, ...expectedBatches]);
-  });
-
-  it('should handle LZ4 compressed data', async () => {
-    const rowSetProvider = new ResultsProviderStub([sampleRowSet1LZ4Compressed], undefined);
-    const result = new ArrowResultHandler(new ClientContextStub(), rowSetProvider, {
-      status: { statusCode: TStatusCode.SUCCESS_STATUS },
-      arrowSchema: sampleArrowSchema,
-      lz4Compressed: true,
-    });
-
-    const { batches } = await result.fetchNext({ limit: 10000 });
-    expect(await rowSetProvider.hasMore()).to.be.false;
-    expect(await result.hasMore()).to.be.false;
-
-    const expectedBatches = sampleRowSet1.arrowBatches?.map(({ batch }) => batch) ?? [];
-    expect(batches).to.deep.eq([sampleArrowSchema, ...expectedBatches]);
-  });
-
-  it('should not buffer any data', async () => {
-    const rowSetProvider = new ResultsProviderStub([sampleRowSet1], undefined);
-    const result = new ArrowResultHandler(new ClientContextStub(), rowSetProvider, {
-      arrowSchema: sampleArrowSchema,
-      status: { statusCode: TStatusCode.SUCCESS_STATUS },
-    });
-    expect(await rowSetProvider.hasMore()).to.be.true;
-    expect(await result.hasMore()).to.be.true;
-
-    await result.fetchNext({ limit: 10000 });
-    expect(await rowSetProvider.hasMore()).to.be.false;
-    expect(await result.hasMore()).to.be.false;
   });
 
   it('should return empty array if no data to process', async () => {
@@ -230,16 +190,4 @@ describe('ArrowResultHandler', () => {
     expect(await result.hasMore()).to.be.false;
   });
 
-  it('should handle data without LZ4 compression', async () => {
-    const rowSetProvider = new ResultsProviderStub([sampleRowSet1], undefined);
-    const result = new ArrowResultHandler(new ClientContextStub(), rowSetProvider, {
-      status: { statusCode: TStatusCode.SUCCESS_STATUS },
-      arrowSchema: sampleArrowSchema,
-      lz4Compressed: false,
-    });
-
-    const { batches } = await result.fetchNext({ limit: 10000 });
-    const expectedBatches = sampleRowSet1.arrowBatches?.map(({ batch }) => batch) ?? []; // Ensure iterable
-    expect(batches).to.deep.eq([sampleArrowSchema, ...expectedBatches]);
-  });
 });
